@@ -1,7 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+    <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-JMNFZP9VS7"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-JMNFZP9VS7');
+</script>
+<head>
+  <title>Forbidden Yoga</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="content">
+    <div id="line1"></div>
+    <div id="line2"></div>
+    <div id="line3"></div>
+    <div id="line4"></div>
+  </div>
 
+  <footer class="custom-footer">
+    <div class="footer-content">
+      <div class="contact-us">
+        <a href="https://wa.me/6285190247022" class="whatsapp-link">Contact us on WhatsApp +62 851 9024 7022</a>
+      </div>
+      <div class="empty-line"></div>
+      <div class="privacy-terms">
+        <span class="gray-text"><a href="privacy-agreement.html">Privacy Agreement</a></span> | <span class="gray-text"><a href="terms-and-conditions.html">Terms and Conditions</a></span>
+      </div>
+    </div>
+  </footer>
 
+<style>
+  .content {
+    max-width: 600px;
+    margin: 0 auto;
+    font-size: 0.8em;
+    padding: 0 20px;
+    line-height: 1.3;
+    margin-top: 0;
 
+    /* Media query for mobile devices */
+    @media (max-width: 600px) {
+      --main-sentence-margin-mobile: -200px;
+      margin-top: var(--main-sentence-margin-mobile);
+    }
+  }
 
-Contact us on WhatsApp
+  .footer-content { display: flex; flex-direction: column; align-items: center; }
+  .empty-line { margin: 10px 0; height: 8px; background-color: transparent; width: 100%; }
+  .gray-text { color: gray; font-size: 0.8em; }
+  .gray-text a { color: gray; text-decoration: none; }
+  .gray-text a:hover { color: #777; }
+  .whatsapp-link { font-size: 0.8em; }
+  .custom-footer { position: fixed; bottom: 30px; width: 100%; padding: 10px; text-align: center; background-color: #000; font-size: 0.8em; }
 
-Privacy Agreement | Terms and Conditions
+  @media (max-width: 600px) {
+    .content { font-size: 0.6em; }
+    .custom-footer { font-size: 0.6em; bottom: 10px; }
+    .whatsapp-link { font-size: 0.6em; }
+  }
+</style>
+
+<script>
+  const speed = 100;
+  const pause = 1000;
+  const loopPause = 5000;
+  const textSets = [
+    ["Hi! If you have heard about", "our projects and are interested,", "drop us a line."],
+    ["Forbidden Yoga", "A journey into the depths of the Self"]
+  ];
+  let i = 0;
+  let j = 0;
+  let currentLine = [];
+  let lineIndex = 0;
+  let textSetIndex = 0;
+
+  function typeLine() {
+    if (j < textSets[textSetIndex][lineIndex].length) {
+      currentLine.push(textSets[textSetIndex][lineIndex][j]);
+      document.getElementById(`line${lineIndex + 1}`).textContent = currentLine.join('');
+      j++;
+      setTimeout(typeLine, speed);
+    } else if (lineIndex < textSets[textSetIndex].length - 1) {
+      lineIndex++;
+      j = 0;
+      currentLine = [];
+      setTimeout(typeLine, pause);
+    } else {
+      setTimeout(clearContent, loopPause);
+    }
+  }
+
+  function clearContent() {
+    for (let i = 1; i <= textSets[textSetIndex].length; i++) {
+      document.getElementById(`line${i}`).textContent = '';
+    }
+    lineIndex = 0;
+    j = 0;
+    currentLine = [];
+    textSetIndex = (textSetIndex + 1) % textSets.length;
+    setTimeout(typeLine, pause);
+  }
+
+  typeLine();
+</script>
+</body>
+</html>
