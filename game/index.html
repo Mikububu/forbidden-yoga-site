@@ -1,23 +1,13 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <!-- Google tag -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-JMNFZP9VS7"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments)}
-    gtag('js', new Date()); gtag('config','G-JMNFZP9VS7');
-  </script>
-
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)};gtag('js',new Date());gtag('config','G-JMNFZP9VS7');</script>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>Forbidden Yoga</title>
-
-  <!-- same font as homepage -->
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-
   <style>
-    :root{ --title:"Press Start 2P",system-ui,sans-serif }
+    :root{--title:"Press Start 2P",system-ui,sans-serif}
     html,body{margin:0;background:#000;color:#cfe6ff}
     header{position:fixed;top:8px;left:0;right:0;text-align:center;font:700 28px/1 var(--title);z-index:2}
     #stage{height:100svh;display:grid;place-items:center}
@@ -29,116 +19,98 @@
     .gray-text a{color:gray;text-decoration:none}
     .gray-text a:hover{color:#777}
     .whatsapp-link{font-size:.8em}
-    @media (max-width:600px){
-      header{font-size:22px}
-      .custom-footer{bottom:10px}
-      .gray-text,.whatsapp-link{font-size:.6em}
-    }
+    @media (max-width:600px){header{font-size:22px}.custom-footer{bottom:10px}.gray-text,.whatsapp-link{font-size:.6em}}
   </style>
 </head>
 <body>
   <header>FORBIDDEN YOGA</header>
   <div id="stage"><canvas id="cv"></canvas></div>
   <div class="hud" id="hud">SCORE 0000   LEVEL 1</div>
-
   <footer class="custom-footer">
     <div class="footer-content">
-      <div class="contact-us">
-        <a href="https://wa.me/6285190247022" class="whatsapp-link">Contact us on WhatsApp</a>
-      </div>
+      <div class="contact-us"><a href="https://wa.me/6285190247022" class="whatsapp-link">Contact us on WhatsApp</a></div>
       <div class="gray-text" style="margin-top:8px">
-        <a href="../privacy-agreement.html">Privacy Agreement</a> |
-        <a href="../terms-and-conditions.html">Terms and Conditions</a>
+        <a href="../privacy-agreement.html">Privacy Agreement</a> | <a href="../terms-and-conditions.html">Terms and Conditions</a>
       </div>
     </div>
   </footer>
 
 <script>
 const cv=document.getElementById('cv'), ctx=cv.getContext('2d',{alpha:false})
-function fit(){
-  const dpr=Math.max(1,devicePixelRatio||1)
-  cv.width=innerWidth*dpr; cv.height=innerHeight*dpr
-  cv.style.width=innerWidth+'px'; cv.style.height=innerHeight+'px'
-  ctx.setTransform(dpr,0,0,dpr,0,0)
-}
+function fit(){const dpr=Math.max(1,devicePixelRatio||1);cv.width=innerWidth*dpr;cv.height=innerHeight*dpr;cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';ctx.setTransform(dpr,0,0,dpr,0,0)}
 addEventListener('resize',fit); fit()
 
-const DESKTOP = innerWidth >= 900
-const YOGI_SCALE = DESKTOP ? 0.55 : 0.68
+const DESKTOP=innerWidth>=900
+const YS = DESKTOP?1.0:1.0
+const SCALE_YOGI = DESKTOP?0.9:1.1   // larger, hi-res
+ctx.imageSmoothingEnabled=true
 
+// stars
 const R=()=>Math.random()
-const stars=[...Array(260)].map(()=>({x:R(),y:R(),s:R()*1.4+.4,c:R()<.08?'#9cf':'#556b8b'}))
+const stars=[...Array(280)].map(()=>({x:R(),y:R(),s:R()*1.2+.4,c:R()<.08?'#9cf':'#556b8b'}))
 function drawStars(dt){
   ctx.fillStyle='#000'; ctx.fillRect(0,0,innerWidth,innerHeight)
-  for(const t of stars){
-    ctx.fillStyle=t.c; ctx.fillRect(t.x*innerWidth,t.y*innerHeight,t.s,t.s)
-    t.y=(t.y+dt*.02)%1
-  }
+  for(const t of stars){ ctx.fillStyle=t.c; ctx.fillRect(t.x*innerWidth,t.y*innerHeight,t.s,t.s); t.y=(t.y+dt*.02)%1 }
 }
 
-function roundRect(x,y,w,h,r,fill,stroke){
-  ctx.beginPath()
-  ctx.moveTo(x+r,y)
-  ctx.arcTo(x+w,y,x+w,y+h,r)
-  ctx.arcTo(x+w,y+h,x,y+h,r)
-  ctx.arcTo(x,y+h,x,y,r)
-  ctx.arcTo(x,y,x+w,y,r)
-  if(fill) ctx.fill()
-  if(stroke) ctx.stroke()
-}
+// helpers
+function pathRoundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
 
-function drawYogi(x,y,scale,sex){
+// hi-res yogi with curves and shading
+function drawYogi(x,y,sex,scale=1){
   ctx.save(); ctx.translate(x,y); ctx.scale(scale,scale)
 
-  const cg=ctx.createLinearGradient(0,44,0,60)
-  cg.addColorStop(0,'#f8f8f8'); cg.addColorStop(1,'#dcdcdc')
-  ctx.fillStyle=cg; roundRect(-70,48,140,18,10,true,false)
+  // cushion
+  let g=ctx.createLinearGradient(0,44,0,64); g.addColorStop(0,'#f4f4f4'); g.addColorStop(1,'#d7d7d7')
+  ctx.fillStyle=g; pathRoundRect(-90,50,180,22,12); ctx.fill()
 
-  const rl=ctx.createLinearGradient(0,8,0,44)
-  rl.addColorStop(0,'#fff'); rl.addColorStop(1,'#e8e8e8')
-  ctx.fillStyle=rl
-  ctx.beginPath()
-  ctx.moveTo(-60,38)
-  ctx.quadraticCurveTo(-24,10,0,10)
-  ctx.quadraticCurveTo(24,10,60,38)
-  ctx.quadraticCurveTo(0,56,-60,38)
-  ctx.fill()
+  // lower robe and crossed legs
+  g=ctx.createLinearGradient(0,8,0,44); g.addColorStop(0,'#fff'); g.addColorStop(1,'#e6e6e6')
+  ctx.fillStyle=g; ctx.beginPath()
+  ctx.moveTo(-80,40)
+  ctx.bezierCurveTo(-44,8,-10,6,0,6)
+  ctx.bezierCurveTo(10,6,44,8,80,40)
+  ctx.bezierCurveTo(10,62,-10,62,-80,40)
+  ctx.closePath(); ctx.fill()
 
-  const rt=ctx.createLinearGradient(0,-16,0,22)
-  rt.addColorStop(0,'#fff'); rt.addColorStop(1,'#ededed')
-  ctx.fillStyle=rt
-  ctx.beginPath()
-  ctx.moveTo(-32,22); ctx.lineTo(-14,-14); ctx.lineTo(14,-14); ctx.lineTo(32,22)
-  ctx.quadraticCurveTo(0,32,-32,22); ctx.fill()
+  // torso robe with soft taper
+  g=ctx.createLinearGradient(0,-18,0,24); g.addColorStop(0,'#fff'); g.addColorStop(1,'#ededed')
+  ctx.fillStyle=g; ctx.beginPath()
+  ctx.moveTo(-36,24); ctx.lineTo(-12,-18); ctx.lineTo(12,-18); ctx.lineTo(36,24)
+  ctx.quadraticCurveTo(0,36,-36,24); ctx.closePath(); ctx.fill()
 
-  ctx.fillStyle='#f1f1f1'
-  roundRect(-44,0,20,8,5,true,false)
-  roundRect(24,0,20,8,5,true,false)
+  // folded arms
+  ctx.fillStyle='#f1f1f1'; pathRoundRect(-44,0,22,10,6); ctx.fill(); pathRoundRect(22,0,22,10,6); ctx.fill()
 
-  ctx.fillStyle='#f3c28f'; roundRect(-6,-22,12,7,3,true,false)
+  // neck
+  const skinTop='#f6cf9f', skinMid='#efbb86'
+  g=ctx.createLinearGradient(0,-22,0,-12); g.addColorStop(0,skinTop); g.addColorStop(1,skinMid)
+  ctx.fillStyle=g; pathRoundRect(-7,-22,14,9,4); ctx.fill()
 
-  const skin='#f5c79a'
-  ctx.fillStyle=skin; roundRect(-18,-44,36,26,12,true,false)
+  // head oval
+  g=ctx.createLinearGradient(0,-46,0,-18); g.addColorStop(0,skinTop); g.addColorStop(1,skinMid)
+  ctx.fillStyle=g; pathRoundRect(-22,-46,44,28,12); ctx.fill()
 
-  ctx.fillStyle='#ffffff'
-  roundRect(-26,-52,52,9,5,true,false)
-  roundRect(-20,-60,40,7,4,true,false)
+  // subtle face contour
+  ctx.strokeStyle='rgba(0,0,0,.15)'; ctx.lineWidth=1; pathRoundRect(-22,-46,44,28,12); ctx.stroke()
 
-  ctx.fillStyle='#2a2a2a'
-  roundRect(-9,-34,5,3,1,true,false)
-  roundRect(4,-34,5,3,1,true,false)
-  if(sex==='m'){ ctx.fillStyle='#c7b299'; roundRect(-10,-26,20,3,1,true,false) }
-  else{ ctx.fillStyle=skin; roundRect(-8,-26,16,2,1,true,false) }
+  // turban with banding and highlight
+  g=ctx.createLinearGradient(0,-64,0,-48); g.addColorStop(0,'#fff'); g.addColorStop(1,'#e9e9e9')
+  ctx.fillStyle=g; pathRoundRect(-28,-62,56,10,5); ctx.fill()
+  g=ctx.createLinearGradient(0,-56,0,-44); g.addColorStop(0,'#fff'); g.addColorStop(1,'#ececec')
+  ctx.fillStyle=g; pathRoundRect(-34,-52,68,10,6); ctx.fill()
+
+  // eyes
+  ctx.fillStyle='#222'; pathRoundRect(-9,-34,6,3,1); ctx.fill(); pathRoundRect(3,-34,6,3,1); ctx.fill()
+  // mouth or beard line
+  if(sex==='m'){ ctx.fillStyle='#bfa98e'; pathRoundRect(-12,-26,24,3,1); ctx.fill() }
+  else { ctx.fillStyle=skinMid; pathRoundRect(-10,-26,20,2,1); ctx.fill() }
 
   ctx.restore()
 }
 
-const yogis=[...Array(5)].map(()=>({
-  x:100+Math.random()*(innerWidth-200),
-  y:-120-Math.random()*260,
-  v:140+Math.random()*90,
-  sex:Math.random()<.5?'m':'f'
-}))
+// game state
+const yogis=[...Array(5)].map(()=>({x:140+R()*(innerWidth-280),y:-140-R()*280,v:160+R()*100,sex:R()<.5?'m':'f'}))
 const bullets=[]
 const ship={x:innerWidth/2,y:innerHeight-90}
 let left=false,right=false,shoot=false,score=0,level=1
@@ -150,23 +122,23 @@ let last=performance.now(), dt=0
 function loop(t){ dt=(t-last)/1000; last=t; update(dt); render(dt); requestAnimationFrame(loop) }
 
 function update(dt){
-  const s=480
+  const s=520
   ship.x=Math.max(30,Math.min(innerWidth-30, ship.x + ((right?1:0)-(left?1:0))*s*dt))
-  if(shoot && (!bullets.length || performance.now()-bullets.at(-1).t>120)){
-    bullets.push({x:ship.x,y:ship.y-14,v:900,t:performance.now()})
+  if(shoot && (!bullets.length || performance.now()-bullets.at(-1).t>110)){
+    bullets.push({x:ship.x,y:ship.y-16,v:940,t:performance.now()})
   }
   for(const b of bullets) b.y-=b.v*dt
-  while(bullets.length && bullets[0].y<-20) bullets.shift()
+  while(bullets.length && bullets[0].y<-30) bullets.shift()
 
   for(const y of yogis){
-    y.y+=y.v*dt
-    if(y.y>innerHeight+80){ y.x=120+Math.random()*(innerWidth-240); y.y=-100-Math.random()*240; y.v=120+Math.random()*80 }
+    y.y+=y.v*dt*YS
+    if(y.y>innerHeight+100){ y.x=140+R()*(innerWidth-280); y.y=-140-R()*280; y.v=160+R()*100 }
   }
   for(const b of bullets){
     for(const y of yogis){
-      const w=70,h=88
+      const w=90,h=110
       if(b.x>y.x-w/2 && b.x<y.x+w/2 && b.y>y.y-h/2 && b.y<y.y+h/2){
-        score+=10; y.x=120+Math.random()*(innerWidth-240); y.y=-100-Math.random()*240; y.v=120+Math.random()*80; b.y=-9999
+        score+=10; y.x=140+R()*(innerWidth-280); y.y=-140-R()*280; y.v=160+R()*100; b.y=-9999
       }
     }
   }
@@ -175,13 +147,12 @@ function update(dt){
 
 function render(dt){
   drawStars(dt)
-  for(const y of yogis) drawYogi(y.x,y.y,YOGI_SCALE,y.sex)
-  ctx.fillStyle='#ffe08a'; for(const b of bullets) ctx.fillRect(b.x-1,b.y-12,2,20)
+  for(const y of yogis) drawYogi(y.x,y.y,y.sex,SCALE_YOGI)
+  ctx.fillStyle='#ffe08a'; for(const b of bullets) ctx.fillRect(b.x-1,b.y-14,2,22)
   ctx.fillStyle='#3fd092'; ctx.fillRect(ship.x-6,ship.y-20,12,20)
   ctx.fillStyle='#2aa579'; ctx.fillRect(ship.x-14,ship.y-10,28,10)
   ctx.fillStyle='#1b6e53'; ctx.fillRect(ship.x-22,ship.y-5,44,5)
 }
-
 requestAnimationFrame(loop)
 </script>
 </body>
