@@ -1,116 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Forbidden Yoga</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <style>
+    :root{--title:"Press Start 2P",system-ui,sans-serif}
+    html,body{margin:0;background:#000;color:#cfe6ff}
+    header{position:fixed;top:8px;left:0;right:0;text-align:center;font:700 28px/1 var(--title);z-index:2}
+    #stage{height:100svh;display:grid;place-items:center}
+    canvas{width:100vw;height:100svh;display:block;background:#000}
+    .hud{position:fixed;left:10px;bottom:10px;font:12px/1 var(--title);opacity:.9;z-index:2}
+    .custom-footer{position:fixed;bottom:30px;width:100%;padding:10px;text-align:center;background:#000}
+    .footer-content{display:flex;flex-direction:column;align-items:center}
+    .gray-text{color:gray;font-size:.8em}
+    .gray-text a{color:gray;text-decoration:none}
+    .gray-text a:hover{color:#777}
+    .whatsapp-link{font-size:.8em}
+    @media (max-width:600px){header{font-size:22px}.custom-footer{bottom:10px}.gray-text,.whatsapp-link{font-size:.6em}}
+  </style>
+</head>
+<body>
+  <header>FORBIDDEN YOGA</header>
+  <div id="stage"><canvas id="cv"></canvas></div>
+  <div class="hud" id="hud">SCORE 0000   LEVEL 1</div>
+
+  <footer class="custom-footer">
+    <div class="footer-content">
+      <div class="contact-us">
+        <a href="https://wa.me/6285190247022" class="whatsapp-link">Contact us on WhatsApp</a>
+      </div>
+      <div class="gray-text" style="margin-top:8px">
+        <a href="../privacy-agreement.html">Privacy Agreement</a> |
+        <a href="../terms-and-conditions.html">Terms and Conditions</a>
+      </div>
+    </div>
+  </footer>
+
 <script>
-const cv = document.getElementById('cv'),
-      ctx = cv.getContext('2d', { alpha: false });
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d',{alpha:false})
+function fit(){const dpr=Math.max(1,devicePixelRatio||1);cv.width=innerWidth*dpr;cv.height=innerHeight*dpr;cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';ctx.setTransform(dpr,0,0,dpr,0,0)}
+addEventListener('resize',fit); fit()
 
-function fit() {
-  const dpr = Math.max(1, devicePixelRatio || 1);
-  cv.width = innerWidth * dpr;
-  cv.height = innerHeight * dpr;
-  cv.style.width = innerWidth + 'px';
-  cv.style.height = innerHeight + 'px';
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+// load PNG sprites from same folder
+function load(src){return new Promise((res,rej)=>{const i=new Image(); i.onload=()=>res(i); i.onerror=()=>rej(new Error('Missing '+src)); i.src=src+'?v='+Date.now();})}
+let maleImg,femaleImg,ready=false,loadErr=''
+Promise.all([load('male yogi.png'), load('female yogi.png')])
+  .then(([m,f])=>{maleImg=m;femaleImg=f;ready=true})
+  .catch(e=>{loadErr=e.message})
+
+// starfield
+const R=()=>Math.random()
+const stars=[...Array(300)].map(()=>({x:R(),y:R(),s:R()*1.2+.4,c:R()<.08?'#9cf':'#556b8b'}))
+function drawStars(dt){
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,innerWidth,innerHeight)
+  for(const t of stars){ ctx.fillStyle=t.c; ctx.fillRect(t.x*innerWidth,t.y*innerHeight,t.s,t.s); t.y=(t.y+dt*.02)%1 }
 }
-addEventListener('resize', fit);
-fit();
 
-// Load the sprite images
-const maleImg = new Image();
-maleImg.src = 'male yogi.png';
+// game state
+const DESKTOP = innerWidth >= 900
+const SCALE = DESKTOP ? 0.42 : 0.56
+const yogis=[...Array(5)].map(()=>({x:140+R()*(innerWidth-280),y:-140-R()*280,v:160+R()*100,sex:R()<.5?'m':'f'}))
+const bullets=[]
+const ship={x:innerWidth/2,y:innerHeight-90}
+let left=false,right=false,shoot=false,score=0,level=1
 
-const femaleImg = new Image();
-femaleImg.src = 'female yogi.png';
+addEventListener('keydown',e=>{const k=e.key.toLowerCase(); if(k==='arrowleft'||k==='a')left=true; if(k==='arrowright'||k==='d')right=true; if(k===' ')shoot=true})
+addEventListener('keyup',e=>{const k=e.key.toLowerCase(); if(k==='arrowleft'||k==='a')left=false; if(k==='arrowright'||k==='d')right=false; if(k===' ')shoot=false})
 
-// Starfield code stays the same
-const R = () => Math.random();
-const stars = [...Array(260)].map(() => ({ x: R(), y: R(), s: R() * 1.4 + .4, c: R() < .08 ? '#9cf' : '#556b8b' }));
-function drawStars(dt) {
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, innerWidth, innerHeight);
-  for (const t of stars) {
-    ctx.fillStyle = t.c;
-    ctx.fillRect(t.x * innerWidth, t.y * innerHeight, t.s, t.s);
-    t.y = (t.y + dt * .02) % 1;
+let last=performance.now()
+function loop(t){
+  const dt=(t-last)/1000; last=t
+  update(dt); render(dt)
+  requestAnimationFrame(loop)
+}
+
+function update(dt){
+  const s=520
+  ship.x=Math.max(30,Math.min(innerWidth-30, ship.x + ((right?1:0)-(left?1:0))*s*dt))
+  if(shoot && (!bullets.length || performance.now()-bullets.at(-1).t>110)){
+    bullets.push({x:ship.x,y:ship.y-16,v:940,t:performance.now()})
   }
-}
+  for(const b of bullets) b.y-=b.v*dt
+  while(bullets.length && bullets[0].y<-30) bullets.shift()
 
-// Draw yogi from PNG
-function drawYogi(x, y, scale, sex) {
-  const img = sex === 'm' ? maleImg : femaleImg;
-  const w = img.width * scale;
-  const h = img.height * scale;
-  ctx.drawImage(img, x - w / 2, y - h / 2, w, h);
-}
-
-// Game loop stays the same, except drawYogi call
-const yogis = [...Array(5)].map(() => ({
-  x: 120 + R() * (innerWidth - 240),
-  y: -100 - R() * 240,
-  v: 120 + R() * 80,
-  sex: R() < .5 ? 'm' : 'f'
-}));
-const bullets = [];
-const ship = { x: innerWidth / 2, y: innerHeight - 90 };
-let left = false, right = false, shoot = false, score = 0, level = 1;
-
-addEventListener('keydown', e => {
-  const k = e.key.toLowerCase();
-  if (k === 'arrowleft' || k === 'a') left = true;
-  if (k === 'arrowright' || k === 'd') right = true;
-  if (k === ' ') shoot = true;
-});
-addEventListener('keyup', e => {
-  const k = e.key.toLowerCase();
-  if (k === 'arrowleft' || k === 'a') left = false;
-  if (k === 'arrowright' || k === 'd') right = false;
-  if (k === ' ') shoot = false;
-});
-
-let last = performance.now();
-function loop(t) {
-  const dt = (t - last) / 1000;
-  last = t;
-  update(dt);
-  render(dt);
-  requestAnimationFrame(loop);
-}
-function update(dt) {
-  const s = 480;
-  ship.x = Math.max(30, Math.min(innerWidth - 30, ship.x + ((right ? 1 : 0) - (left ? 1 : 0)) * s * dt));
-  if (shoot && (!bullets.length || performance.now() - bullets.at(-1).t > 120)) {
-    bullets.push({ x: ship.x, y: ship.y - 14, v: 900, t: performance.now() });
+  for(const y of yogis){
+    y.y+=y.v*dt
+    if(y.y>innerHeight+100){ y.x=140+R()*(innerWidth-280); y.y=-140-R()*280; y.v=160+R()*100 }
   }
-  for (const b of bullets) b.y -= b.v * dt;
-  while (bullets.length && bullets[0].y < -20) bullets.shift();
-
-  for (const y of yogis) {
-    y.y += y.v * dt;
-    if (y.y > innerHeight + 80) {
-      y.x = 120 + R() * (innerWidth - 240);
-      y.y = -100 - R() * 240;
-      y.v = 120 + R() * 80;
-    }
-  }
-  for (const b of bullets) {
-    for (const y of yogis) {
-      const w = 70, h = 88;
-      if (b.x > y.x - w / 2 && b.x < y.x + w / 2 && b.y > y.y - h / 2 && b.y < y.y + h / 2) {
-        score += 10;
-        y.x = 120 + R() * (innerWidth - 240);
-        y.y = -100 - R() * 240;
-        y.v = 120 + R() * 80;
-        b.y = -9999;
+  for(const b of bullets){
+    for(const y of yogis){
+      const img = y.sex==='m' ? maleImg : femaleImg
+      if(!img) continue
+      const w=img.width*SCALE, h=img.height*SCALE
+      if(b.x>y.x-w/2 && b.x<y.x+w/2 && b.y>y.y-h/2 && b.y<y.y+h/2){
+        score+=10; y.x=140+R()*(innerWidth-280); y.y=-140-R()*280; y.v=160+R()*100; b.y=-9999
       }
     }
   }
-  document.getElementById('hud').textContent = `SCORE ${String(score).padStart(4, '0')}   LEVEL ${level}`;
+  document.getElementById('hud').textContent=`SCORE ${String(score).padStart(4,'0')}   LEVEL ${level}`
 }
-function render(dt) {
-  drawStars(dt);
-  for (const y of yogis) drawYogi(y.x, y.y, 0.5, y.sex);
-  ctx.fillStyle = '#ffe08a'; for (const b of bullets) ctx.fillRect(b.x - 1, b.y - 12, 2, 20);
-  ctx.fillStyle = '#3fd092'; ctx.fillRect(ship.x - 6, ship.y - 20, 12, 20);
-  ctx.fillStyle = '#2aa579'; ctx.fillRect(ship.x - 14, ship.y - 10, 28, 10);
-  ctx.fillStyle = '#1b6e53'; ctx.fillRect(ship.x - 22, ship.y - 5, 44, 5);
+
+function render(dt){
+  drawStars(dt)
+
+  if(loadErr){
+    ctx.fillStyle='#f66'; ctx.font='16px system-ui'
+    ctx.fillText(loadErr, 20, 40)
+  } else if(ready){
+    for(const y of yogis){
+      const img = y.sex==='m' ? maleImg : femaleImg
+      const w = img.width*SCALE, h = img.height*SCALE
+      ctx.drawImage(img, Math.round(y.x-w/2), Math.round(y.y-h/2), Math.round(w), Math.round(h))
+    }
+  } else {
+    ctx.fillStyle='#888'; ctx.font='16px system-ui'
+    ctx.fillText('Loading sprites…', 20, 40)
+  }
+
+  ctx.fillStyle='#ffe08a'; for(const b of bullets) ctx.fillRect(b.x-1,b.y-14,2,22)
+  ctx.fillStyle='#3fd092'; ctx.fillRect(ship.x-6,ship.y-20,12,20)
+  ctx.fillStyle='#2aa579'; ctx.fillRect(ship.x-14,ship.y-10,28,10)
+  ctx.fillStyle='#1b6e53'; ctx.fillRect(ship.x-22,ship.y-5,44,5)
 }
-requestAnimationFrame(loop);
+
+requestAnimationFrame(loop)
 </script>
+</body>
+</html>
