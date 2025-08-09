@@ -4,9 +4,9 @@
   <!-- Google tag -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-JMNFZP9VS7"></script>
   <script>
-    window.dataLayer=window.dataLayer||[];
+    window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments)}
-    gtag('js',new Date()); gtag('config','G-JMNFZP9VS7');
+    gtag('js', new Date()); gtag('config','G-JMNFZP9VS7');
   </script>
 
   <meta charset="utf-8">
@@ -19,7 +19,7 @@
   <style>
     :root{ --title:"Press Start 2P",system-ui,sans-serif }
     html,body{margin:0;background:#000;color:#cfe6ff}
-    header{position:fixed;top:8px;left:0;right:0;text-align:center;font:700 28px/1 var(--title)}
+    header{position:fixed;top:8px;left:0;right:0;text-align:center;font:700 28px/1 var(--title);z-index:2}
     #stage{height:100svh;display:grid;place-items:center}
     canvas{width:100vw;height:100svh;display:block;background:#000}
     .hud{position:fixed;left:10px;bottom:10px;font:12px/1 var(--title);opacity:.9;z-index:2}
@@ -55,10 +55,17 @@
 
 <script>
 const cv=document.getElementById('cv'), ctx=cv.getContext('2d',{alpha:false})
-function fit(){const dpr=Math.max(1,devicePixelRatio||1);cv.width=innerWidth*dpr;cv.height=innerHeight*dpr;cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';ctx.setTransform(dpr,0,0,dpr,0,0)}
+function fit(){
+  const dpr=Math.max(1,devicePixelRatio||1)
+  cv.width=innerWidth*dpr; cv.height=innerHeight*dpr
+  cv.style.width=innerWidth+'px'; cv.style.height=innerHeight+'px'
+  ctx.setTransform(dpr,0,0,dpr,0,0)
+}
 addEventListener('resize',fit); fit()
 
-// starfield
+const DESKTOP = innerWidth >= 900
+const YOGI_SCALE = DESKTOP ? 0.55 : 0.68
+
 const R=()=>Math.random()
 const stars=[...Array(260)].map(()=>({x:R(),y:R(),s:R()*1.4+.4,c:R()<.08?'#9cf':'#556b8b'}))
 function drawStars(dt){
@@ -67,69 +74,6 @@ function drawStars(dt){
     ctx.fillStyle=t.c; ctx.fillRect(t.x*innerWidth,t.y*innerHeight,t.s,t.s)
     t.y=(t.y+dt*.02)%1
   }
-}
-
-// smooth hi-res yogi
-function drawYogi(x,y,scale,sex){ // sex 'm' or 'f'
-  ctx.save(); ctx.translate(x,y); ctx.scale(scale,scale); ctx.lineWidth=1
-
-  // cushion
-  const cGrad=ctx.createLinearGradient(0,40,0,64)
-  cGrad.addColorStop(0,'#f4f4f4'); cGrad.addColorStop(1,'#dcdcdc')
-  ctx.fillStyle=cGrad
-  roundRect(-80,48,160,24,12,true,false)
-
-  // lower robe and crossed legs
-  const robeLow=ctx.createLinearGradient(0,10,0,48)
-  robeLow.addColorStop(0,'#ffffff'); robeLow.addColorStop(1,'#e8e8e8')
-  ctx.fillStyle=robeLow
-  ctx.beginPath()
-  ctx.moveTo(-68,40)
-  ctx.quadraticCurveTo(-34,12,0,12)
-  ctx.quadraticCurveTo(34,12,68,40)
-  ctx.quadraticCurveTo(0,60,-68,40)
-  ctx.closePath(); ctx.fill()
-
-  // torso robe
-  const robeTop=ctx.createLinearGradient(0,-18,0,24)
-  robeTop.addColorStop(0,'#ffffff'); robeTop.addColorStop(1,'#ededed')
-  ctx.fillStyle=robeTop
-  ctx.beginPath()
-  ctx.moveTo(-40,24); ctx.lineTo(-16,-14); ctx.lineTo(16,-14); ctx.lineTo(40,24)
-  ctx.quadraticCurveTo(0,36,-40,24); ctx.fill()
-
-  // folded forearms
-  ctx.fillStyle='#f2f2f2'
-  roundRect(-50,0,28,10,6,true,false)
-  roundRect(22,0,28,10,6,true,false)
-
-  // neck
-  ctx.fillStyle='#f3c28f'
-  roundRect(-7,-22,14,8,4,true,false)
-
-  // head
-  const skin='#f5c79a'
-  ctx.fillStyle=skin
-  roundRect(-22,-46,44,28,12,true,false)
-
-  // turban with two bands
-  ctx.fillStyle='#ffffff'
-  roundRect(-30,-56,60,10,5,true,false)
-  roundRect(-24,-64,48,8,4,true,false)
-
-  // facial features
-  ctx.fillStyle='#2a2a2a'
-  roundRect(-10,-34,6,3,1,true,false)
-  roundRect(4,-34,6,3,1,true,false)
-  if(sex==='m'){
-    ctx.fillStyle='#c7b299'; roundRect(-12,-26,24,3,1,true,false) // beard line
-  }else{
-    // soft lips and a small hair bun hint under the turban
-    ctx.fillStyle=skin; roundRect(-10,-26,20,2,1,true,false)
-    ctx.fillStyle='#e0d9c8'; roundRect(-6,-48,12,3,1,true,false)
-  }
-
-  ctx.restore()
 }
 
 function roundRect(x,y,w,h,r,fill,stroke){
@@ -143,8 +87,58 @@ function roundRect(x,y,w,h,r,fill,stroke){
   if(stroke) ctx.stroke()
 }
 
-// simple game loop with clean visuals
-const yogis=[...Array(5)].map(()=>({x:120+R()*(innerWidth-240),y:-100-R()*240,v:120+R()*80,sex:R()<.5?'m':'f'}))
+function drawYogi(x,y,scale,sex){
+  ctx.save(); ctx.translate(x,y); ctx.scale(scale,scale)
+
+  const cg=ctx.createLinearGradient(0,44,0,60)
+  cg.addColorStop(0,'#f8f8f8'); cg.addColorStop(1,'#dcdcdc')
+  ctx.fillStyle=cg; roundRect(-70,48,140,18,10,true,false)
+
+  const rl=ctx.createLinearGradient(0,8,0,44)
+  rl.addColorStop(0,'#fff'); rl.addColorStop(1,'#e8e8e8')
+  ctx.fillStyle=rl
+  ctx.beginPath()
+  ctx.moveTo(-60,38)
+  ctx.quadraticCurveTo(-24,10,0,10)
+  ctx.quadraticCurveTo(24,10,60,38)
+  ctx.quadraticCurveTo(0,56,-60,38)
+  ctx.fill()
+
+  const rt=ctx.createLinearGradient(0,-16,0,22)
+  rt.addColorStop(0,'#fff'); rt.addColorStop(1,'#ededed')
+  ctx.fillStyle=rt
+  ctx.beginPath()
+  ctx.moveTo(-32,22); ctx.lineTo(-14,-14); ctx.lineTo(14,-14); ctx.lineTo(32,22)
+  ctx.quadraticCurveTo(0,32,-32,22); ctx.fill()
+
+  ctx.fillStyle='#f1f1f1'
+  roundRect(-44,0,20,8,5,true,false)
+  roundRect(24,0,20,8,5,true,false)
+
+  ctx.fillStyle='#f3c28f'; roundRect(-6,-22,12,7,3,true,false)
+
+  const skin='#f5c79a'
+  ctx.fillStyle=skin; roundRect(-18,-44,36,26,12,true,false)
+
+  ctx.fillStyle='#ffffff'
+  roundRect(-26,-52,52,9,5,true,false)
+  roundRect(-20,-60,40,7,4,true,false)
+
+  ctx.fillStyle='#2a2a2a'
+  roundRect(-9,-34,5,3,1,true,false)
+  roundRect(4,-34,5,3,1,true,false)
+  if(sex==='m'){ ctx.fillStyle='#c7b299'; roundRect(-10,-26,20,3,1,true,false) }
+  else{ ctx.fillStyle=skin; roundRect(-8,-26,16,2,1,true,false) }
+
+  ctx.restore()
+}
+
+const yogis=[...Array(5)].map(()=>({
+  x:100+Math.random()*(innerWidth-200),
+  y:-120-Math.random()*260,
+  v:140+Math.random()*90,
+  sex:Math.random()<.5?'m':'f'
+}))
 const bullets=[]
 const ship={x:innerWidth/2,y:innerHeight-90}
 let left=false,right=false,shoot=false,score=0,level=1
@@ -153,11 +147,8 @@ addEventListener('keydown',e=>{const k=e.key.toLowerCase(); if(k==='arrowleft'||
 addEventListener('keyup',e=>{const k=e.key.toLowerCase(); if(k==='arrowleft'||k==='a')left=false; if(k==='arrowright'||k==='d')right=false; if(k===' ')shoot=false})
 
 let last=performance.now(), dt=0
-function loop(t){
-  dt=(t-last)/1000; last=t
-  update(dt); render(dt)
-  requestAnimationFrame(loop)
-}
+function loop(t){ dt=(t-last)/1000; last=t; update(dt); render(dt); requestAnimationFrame(loop) }
+
 function update(dt){
   const s=480
   ship.x=Math.max(30,Math.min(innerWidth-30, ship.x + ((right?1:0)-(left?1:0))*s*dt))
@@ -169,27 +160,28 @@ function update(dt){
 
   for(const y of yogis){
     y.y+=y.v*dt
-    if(y.y>innerHeight+80){ y.x=120+R()*(innerWidth-240); y.y=-100-R()*240; y.v=120+R()*80 }
+    if(y.y>innerHeight+80){ y.x=120+Math.random()*(innerWidth-240); y.y=-100-Math.random()*240; y.v=120+Math.random()*80 }
   }
   for(const b of bullets){
     for(const y of yogis){
       const w=70,h=88
       if(b.x>y.x-w/2 && b.x<y.x+w/2 && b.y>y.y-h/2 && b.y<y.y+h/2){
-        score+=10; y.x=120+R()*(innerWidth-240); y.y=-100-R()*240; y.v=120+R()*80; b.y=-9999
+        score+=10; y.x=120+Math.random()*(innerWidth-240); y.y=-100-Math.random()*240; y.v=120+Math.random()*80; b.y=-9999
       }
     }
   }
   document.getElementById('hud').textContent=`SCORE ${String(score).padStart(4,'0')}   LEVEL ${level}`
 }
+
 function render(dt){
   drawStars(dt)
-  for(const y of yogis) drawYogi(y.x,y.y,1.0,y.sex)
+  for(const y of yogis) drawYogi(y.x,y.y,YOGI_SCALE,y.sex)
   ctx.fillStyle='#ffe08a'; for(const b of bullets) ctx.fillRect(b.x-1,b.y-12,2,20)
-  // minimalist ship
   ctx.fillStyle='#3fd092'; ctx.fillRect(ship.x-6,ship.y-20,12,20)
   ctx.fillStyle='#2aa579'; ctx.fillRect(ship.x-14,ship.y-10,28,10)
   ctx.fillStyle='#1b6e53'; ctx.fillRect(ship.x-22,ship.y-5,44,5)
 }
+
 requestAnimationFrame(loop)
 </script>
 </body>
