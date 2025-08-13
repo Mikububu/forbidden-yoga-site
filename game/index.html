@@ -49,8 +49,13 @@
     const E_BULLET_SPEED = 50
     const FIRE_GAP = 280      // ms
 
+    let maleOk = false, femaleOk = false
     const male = new Image()
     const female = new Image()
+    male.onload = () => maleOk = true
+    female.onload = () => femaleOk = true
+    male.onerror = () => { maleOk = false }
+    female.onerror = () => { femaleOk = false }
     male.src = 'men_yogi.png' // rename file accordingly
     female.src = 'woman_yogi.png' // rename file accordingly
 
@@ -185,14 +190,6 @@
       ctx.fillRect(0, 0, 224, 256)
       ctx.fillStyle = '#9eff6b'
       ctx.fillRect(0, 244, 224, 1)
-      // debug marker to verify rendering
-      ctx.fillStyle = '#f00'
-      ctx.fillRect(110, 122, 4, 4)
-    } {
-      ctx.fillStyle = '#000'
-      ctx.fillRect(0, 0, 224, 256)
-      ctx.fillStyle = '#9eff6b'
-      ctx.fillRect(0, 244, 224, 1)
     }
 
     function drawPlayer() {
@@ -204,19 +201,6 @@
     }
 
     function drawInvader(inv) {
-      const img = inv.sex === 'male' ? male : female
-      if ((inv.sex === 'male' && maleOk) || (inv.sex === 'female' && femaleOk)) {
-        const dx = Math.round(inv.x - SPRITE_W * 0.5)
-        const dy = Math.round(inv.y - SPRITE_H * 0.5)
-        ctx.drawImage(img, dx, dy, SPRITE_W, SPRITE_H)
-      } else {
-        // placeholder so you still see the grid
-        ctx.fillStyle = '#9eff6b'
-        const dx = Math.round(inv.x - SPRITE_W * 0.5)
-        const dy = Math.round(inv.y - SPRITE_H * 0.5)
-        ctx.fillRect(dx, dy, SPRITE_W, SPRITE_H)
-      }
-    } {
       // integer pixel positions prevent shimmer
       const dx = Math.round(inv.x - SPRITE_W * 0.5)
       const dy = Math.round(inv.y - SPRITE_H * 0.5)
