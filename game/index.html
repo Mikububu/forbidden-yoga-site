@@ -21,6 +21,7 @@
   <script>
     const view = document.getElementById('game')
     const ctx = view.getContext('2d')
+    ctx.imageSmoothingEnabled = false
     function fit() {
       const s = Math.floor(Math.min(innerWidth / 224, innerHeight / 256)) || 1
       view.style.width = 224 * s + 'px'
@@ -36,12 +37,12 @@
     // constants
     const GRID_COLS = 11
     const GRID_ROWS = 5
-    const CELL_W = 16
-    const CELL_H = 14
-    const SPRITE_W = 32  // fixed draw size
-    const SPRITE_H = 32
+    const CELL_W = 20
+    const CELL_H = 18
+    const SPRITE_W = 18
+    const SPRITE_H = 18
 
-    const H_SPEED = 10        // px per second formation
+    const H_SPEED = 8        // px per second formation
     const DROP = 8            // px on edge
     const PLAYER_SPEED = 60   // px per second
     const P_BULLET_SPEED = 120
@@ -75,6 +76,9 @@
             w: SPRITE_W, h: SPRITE_H,
             sex: (r % 2 === 0 ? 'male' : 'female')
           })
+        }
+      }
+    })
         }
       }
     }
@@ -185,8 +189,10 @@
     }
 
     function drawInvader(inv) {
-      const img = inv.sex === 'male' ? male : female
-      ctx.drawImage(img, inv.x - SPRITE_W * 0.5, inv.y - SPRITE_H * 0.5, SPRITE_W, SPRITE_H)
+      // integer pixel positions prevent shimmer
+      const dx = Math.round(inv.x - SPRITE_W * 0.5)
+      const dy = Math.round(inv.y - SPRITE_H * 0.5)
+      ctx.drawImage(inv.sex === 'male' ? male : female, dx, dy, SPRITE_W, SPRITE_H)
     }
 
     function drawBullets() {
