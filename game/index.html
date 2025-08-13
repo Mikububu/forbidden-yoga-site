@@ -51,8 +51,8 @@
 
     const male = new Image()
     const female = new Image()
-    male.src = 'men yogi.png'
-    female.src = 'woman yogi.png'
+    male.src = 'men_yogi.png' // rename file accordingly
+    female.src = 'woman_yogi.png' // rename file accordingly
 
     const keys = new Set()
     addEventListener('keydown', e => { if (e.code === 'Space') e.preventDefault(); keys.add(e.key) })
@@ -178,6 +178,21 @@
       ctx.fillRect(0, 0, 224, 256)
       ctx.fillStyle = '#9eff6b'
       ctx.fillRect(0, 244, 224, 1)
+      ctx.fillStyle = '#f00'
+      ctx.fillRect(110, 122, 4, 4)
+    } {
+      ctx.fillStyle = '#000'
+      ctx.fillRect(0, 0, 224, 256)
+      ctx.fillStyle = '#9eff6b'
+      ctx.fillRect(0, 244, 224, 1)
+      // debug marker to verify rendering
+      ctx.fillStyle = '#f00'
+      ctx.fillRect(110, 122, 4, 4)
+    } {
+      ctx.fillStyle = '#000'
+      ctx.fillRect(0, 0, 224, 256)
+      ctx.fillStyle = '#9eff6b'
+      ctx.fillRect(0, 244, 224, 1)
     }
 
     function drawPlayer() {
@@ -189,6 +204,19 @@
     }
 
     function drawInvader(inv) {
+      const img = inv.sex === 'male' ? male : female
+      if ((inv.sex === 'male' && maleOk) || (inv.sex === 'female' && femaleOk)) {
+        const dx = Math.round(inv.x - SPRITE_W * 0.5)
+        const dy = Math.round(inv.y - SPRITE_H * 0.5)
+        ctx.drawImage(img, dx, dy, SPRITE_W, SPRITE_H)
+      } else {
+        // placeholder so you still see the grid
+        ctx.fillStyle = '#9eff6b'
+        const dx = Math.round(inv.x - SPRITE_W * 0.5)
+        const dy = Math.round(inv.y - SPRITE_H * 0.5)
+        ctx.fillRect(dx, dy, SPRITE_W, SPRITE_H)
+      }
+    } {
       // integer pixel positions prevent shimmer
       const dx = Math.round(inv.x - SPRITE_W * 0.5)
       const dy = Math.round(inv.y - SPRITE_H * 0.5)
