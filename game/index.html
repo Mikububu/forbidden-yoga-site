@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Kundalini Invaders 1 to 1</title>
+  <title>Kundalini Invaders refined</title>
   <style>
-    html, body { height: 100%; margin: 0; background: #000; color: #9eff6b; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    html, body { height: 100%; margin: 0; background: #000; color: #9eff6b; font-family: ui-monospace, Menlo, Consolas, monospace; }
     canvas { display: block; margin: 0 auto; background: #000; image-rendering: pixelated; image-rendering: crisp-edges; }
-    .hud { position: fixed; top: 6px; left: 8px; display: flex; gap: 24px; font-weight: 700; letter-spacing: 1px; color: #9eff6b; text-shadow: 0 1px 0 #021; }
+    .hud { position: fixed; top: 6px; left: 8px; display: flex; gap: 24px; font-weight: 700; letter-spacing: 1px; color: #9eff6b; }
   </style>
 </head>
 <body>
@@ -16,17 +16,15 @@
     <div>LIVES <span id="lives">3</span></div>
     <div>LEVEL <span id="level">1</span></div>
   </div>
-  <!-- Classic Space Invaders runs at 224 x 256. We render to that then scale for crisp pixels. -->
   <canvas id="game" width="224" height="256"></canvas>
 
   <script>
     const view = document.getElementById('game')
     const ctx = view.getContext('2d')
-    // scale canvas to fit while keeping aspect
     function fit() {
-      const scale = Math.floor(Math.min(window.innerWidth / 224, window.innerHeight / 256)) || 1
-      view.style.width = (224 * scale) + 'px'
-      view.style.height = (256 * scale) + 'px'
+      const scale = Math.floor(Math.min(innerWidth / 224, innerHeight / 256)) || 1
+      view.style.width = 224 * scale + 'px'
+      view.style.height = 256 * scale + 'px'
     }
     addEventListener('resize', fit)
     fit()
@@ -35,7 +33,15 @@
     const hudLives = document.getElementById('lives')
     const hudLevel = document.getElementById('level')
 
-    // assets. Load from repo folder so it works on GitHub
+    // config
+    const FORM_SPEED = 16        // pixels per second horizontal
+    const DROP_PIXELS = 8        // drop on edge
+    const PLAYER_SPEED = 70
+    const PLAYER_BULLET_SPEED = 150
+    const ENEMY_BULLET_SPEED = 55
+    const FIRE_COOLDOWN = 320    // ms
+
+    // assets
     const male = new Image()
     const female = new Image()
     male.src = 'men yogi.png'
@@ -48,27 +54,28 @@
     addEventListener('keydown', e => { if (e.repeat) return; if (e.code === 'Space') e.preventDefault(); keys.add(e.key) })
     addEventListener('keyup', e => keys.delete(e.key))
 
-    // player cannon
-    const player = { x: 112, y: 232, w: 13, h: 8, speed: 2.0, alive: true }
+    // player
+    const player = { x: 112, y: 232, w: 13, h: 8, alive: true, lastFire: 0 }
     let playerBullet = null
 
-    // invader formation 11 x 5 like the arcade
+    // invaders grid
     const COLS = 11, ROWS = 5
     const invaders = []
     const enemyBullets = []
-    let formation = { x: 18, y: 48, dir: 1, stepDown: false, speed: 0.6 }
+    let formation = { x: 20, y: 48, dir: 1 }
 
     function resetFormation() {
       invaders.length = 0
+      // cell spacing
+      const cellW = 16, cellH = 14
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
-          const w = 12, h = 10
+          const baseW = 16, baseH = 16
           invaders.push({
             col: c, row: r, alive: true,
-            // base cell spacing 14 x 12 to match arcade feel
-            x: formation.x + c * 14,
-            y: formation.y + r * 14,
-            w, h,
+            x: formation.x + c * cellW,
+            y: formation.y + r * cellH,
+            w: baseW, h: baseH,
             sex: (r % 2 === 0 ? 'male' : 'female')
           })
         }
@@ -77,7 +84,7 @@
 
     function startLevel(n) {
       hudLevel.textContent = n
-      formation = { x: 18, y: 48, dir: 1, stepDown: false, speed: 0.6 + (n - 1) * 0.08 }
+      formation = { x: 20, y: 48, dir: 1 }
       resetFormation()
       player.x = 112
       player.alive = true
@@ -94,47 +101,53 @@
       return Math.abs(a.x - b.x) * 2 < (a.w + b.w) && Math.abs(a.y - b.y) * 2 < (a.h + b.h)
     }
 
+    let last = performance.now()
     function update() {
+      const now = performance.now()
+      const dt = Math.min(0.05, (now - last) / 1000)
+      last = now
+
       // player move
-      if (keys.has('ArrowLeft') || keys.has('a') || keys.has('A')) player.x -= player.speed
-      if (keys.has('ArrowRight') || keys.has('d') || keys.has('D')) player.x += player.speed
+      if (keys.has('ArrowLeft') || keys.has('a') || keys.has('A')) player.x -= PLAYER_SPEED * dt
+      if (keys.has('ArrowRight') || keys.has('d') || keys.has('D')) player.x += PLAYER_SPEED * dt
       player.x = Math.max(8, Math.min(224 - 8, player.x))
 
-      // shoot one bullet at a time like arcade
-      if ((keys.has(' ') || keys.has('Space')) && !playerBullet && player.alive) {
-        playerBullet = { x: player.x, y: player.y - 6, w: 1, h: 6, vy: -3 }
+      // shoot one bullet at a time with cooldown
+      if ((keys.has(' ') || keys.has('Space')) && !playerBullet && player.alive && now - player.lastFire > FIRE_COOLDOWN) {
+        playerBullet = { x: player.x, y: player.y - 6, w: 1, h: 6, vy: -PLAYER_BULLET_SPEED }
+        player.lastFire = now
       }
       if (playerBullet) {
-        playerBullet.y += playerBullet.vy
+        playerBullet.y += playerBullet.vy * dt
         if (playerBullet.y < 0) playerBullet = null
       }
 
-      // formation horizontal march then drop
-      const leftMost = Math.min(...invaders.filter(i => i.alive).map(i => i.x))
-      const rightMost = Math.max(...invaders.filter(i => i.alive).map(i => i.x + i.w))
-      if (formation.dir === 1 && rightMost >= 224 - 10) { formation.dir = -1; formation.stepDown = true; formation.speed += 0.05 }
-      else if (formation.dir === -1 && leftMost <= 10) { formation.dir = 1; formation.stepDown = true; formation.speed += 0.05 }
-
-      for (const inv of invaders) if (inv.alive) {
-        inv.x += formation.dir * formation.speed
-        if (formation.stepDown) inv.y += 6
+      // march
+      const alive = invaders.filter(i => i.alive)
+      if (alive.length) {
+        // move all by speed
+        const move = FORM_SPEED * dt * (1 + (1 - alive.length / (COLS * ROWS)) * 0.8 + (level - 1) * 0.2) * formation.dir
+        for (const inv of alive) inv.x += move
+        // edges
+        const leftMost = Math.min(...alive.map(i => i.x - i.w * 0.5))
+        const rightMost = Math.max(...alive.map(i => i.x + i.w * 0.5))
+        if (rightMost >= 224 - 8 && formation.dir === 1) { formation.dir = -1; for (const inv of alive) inv.y += DROP_PIXELS }
+        if (leftMost <= 8 && formation.dir === -1) { formation.dir = 1; for (const inv of alive) inv.y += DROP_PIXELS }
       }
-      formation.stepDown = false
 
-      // enemy fire
-      if (Math.random() < 0.02) {
-        // choose a random column bottom alive invader
-        const cols = {}
-        for (const inv of invaders) if (inv.alive) cols[inv.col] = inv
-        const ckeys = Object.keys(cols)
-        if (ckeys.length) {
-          const shooter = cols[ckeys[(Math.random()*ckeys.length)|0]]
-          enemyBullets.push({ x: shooter.x, y: shooter.y + shooter.h, w: 1, h: 6, vy: 1.5 })
+      // enemy fire slower and with protection rule
+      if (Math.random() < 0.012) {
+        const bottomByCol = {}
+        for (const inv of invaders) if (inv.alive) bottomByCol[inv.col] = inv
+        const cols = Object.keys(bottomByCol)
+        if (cols.length) {
+          const shooter = bottomByCol[cols[(Math.random()*cols.length)|0]]
+          enemyBullets.push({ x: shooter.x, y: shooter.y + shooter.h * 0.5, w: 1, h: 6, vy: ENEMY_BULLET_SPEED })
         }
       }
-      for (const eb of enemyBullets) eb.y += eb.vy
+      for (const eb of enemyBullets) eb.y += eb.vy * dt
 
-      // collisions player bullet vs invaders
+      // collisions
       if (playerBullet) {
         for (const inv of invaders) if (inv.alive) {
           if (aabb({x:playerBullet.x,y:playerBullet.y,w:playerBullet.w,h:playerBullet.h}, inv)) {
@@ -146,8 +159,6 @@
           }
         }
       }
-
-      // collisions enemy bullets vs player
       for (let i = enemyBullets.length - 1; i >= 0; i--) {
         const b = enemyBullets[i]
         if (aabb(b, player) && player.alive) {
@@ -159,7 +170,6 @@
         } else if (b.y > 256) enemyBullets.splice(i,1)
       }
 
-      // level clear or game over
       if (!invaders.some(i => i.alive)) { level += 1; startLevel(level) }
       if (invaders.some(i => i.alive && i.y + i.h >= player.y)) { lives = 0; hudLives.textContent = lives }
     }
@@ -167,10 +177,6 @@
     function drawBackdrop() {
       ctx.fillStyle = '#000'
       ctx.fillRect(0, 0, 224, 256)
-      // star field subtle
-      ctx.fillStyle = '#0a0'
-      for (let i = 0; i < 40; i++) ctx.fillRect((i*37)%224, (i*17)%256, 1, 1)
-      // baseline like arcade
       ctx.fillStyle = '#9eff6b'
       ctx.fillRect(0, 244, 224, 1)
     }
@@ -178,7 +184,6 @@
     function drawPlayer() {
       if (!player.alive) return
       ctx.fillStyle = '#9eff6b'
-      // simple cannon pixel art
       ctx.fillRect(player.x - 6, player.y - 2, 12, 4)
       ctx.fillRect(player.x - 3, player.y - 6, 6, 4)
       ctx.fillRect(player.x - 1, player.y - 10, 2, 4)
@@ -187,17 +192,21 @@
     function drawInvader(inv) {
       const img = inv.sex === 'male' ? male : female
       const ok = inv.sex === 'male' ? maleOk : femaleOk
-      // double size request
-      const targetW = inv.w * 2
-      const targetH = inv.h * 2
+      // never downscale, at least double size
       if (ok) {
-        const s = Math.min(targetW / img.width, targetH / img.height)
-        const dw = img.width * s
-        const dh = img.height * s
+        const minScale = 2
+        const scale = Math.max(minScale, 1) // always upscale at least 2x
+        const dw = img.width * scale
+        const dh = img.height * scale
         ctx.drawImage(img, inv.x - dw * 0.5, inv.y - dh * 0.5, dw, dh)
+        inv.w = dw
+        inv.h = dh
       } else {
         ctx.fillStyle = '#9eff6b'
-        ctx.fillRect(inv.x - targetW*0.5, inv.y - targetH*0.5, targetW, targetH)
+        const s = 24
+        ctx.fillRect(inv.x - s*0.5, inv.y - s*0.5, s, s)
+        inv.w = s
+        inv.h = s
       }
     }
 
