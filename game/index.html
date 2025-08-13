@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Kundalini Invaders refined</title>
+  <title>Kundalini Invaders stable</title>
   <style>
     html, body { height: 100%; margin: 0; background: #000; color: #9eff6b; font-family: ui-monospace, Menlo, Consolas, monospace; }
     canvas { display: block; margin: 0 auto; background: #000; image-rendering: pixelated; image-rendering: crisp-edges; }
@@ -22,9 +22,9 @@
     const view = document.getElementById('game')
     const ctx = view.getContext('2d')
     function fit() {
-      const scale = Math.floor(Math.min(innerWidth / 224, innerHeight / 256)) || 1
-      view.style.width = 224 * scale + 'px'
-      view.style.height = 256 * scale + 'px'
+      const s = Math.floor(Math.min(innerWidth / 224, innerHeight / 256)) || 1
+      view.style.width = 224 * s + 'px'
+      view.style.height = 256 * s + 'px'
     }
     addEventListener('resize', fit)
     fit()
@@ -33,55 +33,53 @@
     const hudLives = document.getElementById('lives')
     const hudLevel = document.getElementById('level')
 
-    // config
-    const FORM_SPEED = 16        // pixels per second horizontal
-    const DROP_PIXELS = 8        // drop on edge
-    const PLAYER_SPEED = 70
-    const PLAYER_BULLET_SPEED = 150
-    const ENEMY_BULLET_SPEED = 55
-    const FIRE_COOLDOWN = 320    // ms
+    // constants
+    const GRID_COLS = 11
+    const GRID_ROWS = 5
+    const CELL_W = 16
+    const CELL_H = 14
+    const SPRITE_W = 32  // fixed draw size
+    const SPRITE_H = 32
 
-    // assets
+    const H_SPEED = 10        // px per second formation
+    const DROP = 8            // px on edge
+    const PLAYER_SPEED = 60   // px per second
+    const P_BULLET_SPEED = 120
+    const E_BULLET_SPEED = 50
+    const FIRE_GAP = 280      // ms
+
     const male = new Image()
     const female = new Image()
     male.src = 'men yogi.png'
     female.src = 'woman yogi.png'
-    let maleOk = false, femaleOk = false
-    male.onload = () => maleOk = true
-    female.onload = () => femaleOk = true
 
     const keys = new Set()
-    addEventListener('keydown', e => { if (e.repeat) return; if (e.code === 'Space') e.preventDefault(); keys.add(e.key) })
+    addEventListener('keydown', e => { if (e.code === 'Space') e.preventDefault(); keys.add(e.key) })
     addEventListener('keyup', e => keys.delete(e.key))
 
-    // player
     const player = { x: 112, y: 232, w: 13, h: 8, alive: true, lastFire: 0 }
     let playerBullet = null
 
-    // invaders grid
-    const COLS = 11, ROWS = 5
     const invaders = []
     const enemyBullets = []
     let formation = { x: 20, y: 48, dir: 1 }
 
     function resetFormation() {
       invaders.length = 0
-      // cell spacing
-      const cellW = 16, cellH = 14
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-          const baseW = 16, baseH = 16
+      for (let r = 0; r < GRID_ROWS; r++) {
+        for (let c = 0; c < GRID_COLS; c++) {
           invaders.push({
             col: c, row: r, alive: true,
-            x: formation.x + c * cellW,
-            y: formation.y + r * cellH,
-            w: baseW, h: baseH,
+            x: formation.x + c * CELL_W,
+            y: formation.y + r * CELL_H,
+            w: SPRITE_W, h: SPRITE_H,
             sex: (r % 2 === 0 ? 'male' : 'female')
           })
         }
       }
     }
 
+    let level = 1, score = 0, lives = 3
     function startLevel(n) {
       hudLevel.textContent = n
       formation = { x: 20, y: 48, dir: 1 }
@@ -91,10 +89,6 @@
       playerBullet = null
       enemyBullets.length = 0
     }
-
-    let level = 1
-    let score = 0
-    let lives = 3
     startLevel(level)
 
     function aabb(a, b) {
@@ -102,19 +96,19 @@
     }
 
     let last = performance.now()
+    let enemyFireTimer = 0
     function update() {
       const now = performance.now()
       const dt = Math.min(0.05, (now - last) / 1000)
       last = now
 
-      // player move
+      // player
       if (keys.has('ArrowLeft') || keys.has('a') || keys.has('A')) player.x -= PLAYER_SPEED * dt
       if (keys.has('ArrowRight') || keys.has('d') || keys.has('D')) player.x += PLAYER_SPEED * dt
       player.x = Math.max(8, Math.min(224 - 8, player.x))
 
-      // shoot one bullet at a time with cooldown
-      if ((keys.has(' ') || keys.has('Space')) && !playerBullet && player.alive && now - player.lastFire > FIRE_COOLDOWN) {
-        playerBullet = { x: player.x, y: player.y - 6, w: 1, h: 6, vy: -PLAYER_BULLET_SPEED }
+      if ((keys.has(' ') || keys.has('Space')) && !playerBullet && player.alive && now - player.lastFire > FIRE_GAP) {
+        playerBullet = { x: player.x, y: player.y - 6, w: 1, h: 6, vy: -P_BULLET_SPEED }
         player.lastFire = now
       }
       if (playerBullet) {
@@ -122,30 +116,31 @@
         if (playerBullet.y < 0) playerBullet = null
       }
 
-      // march
+      // formation
       const alive = invaders.filter(i => i.alive)
       if (alive.length) {
-        // move all by speed
-        const move = FORM_SPEED * dt * (1 + (1 - alive.length / (COLS * ROWS)) * 0.8 + (level - 1) * 0.2) * formation.dir
+        const move = H_SPEED * dt * formation.dir
         for (const inv of alive) inv.x += move
-        // edges
         const leftMost = Math.min(...alive.map(i => i.x - i.w * 0.5))
         const rightMost = Math.max(...alive.map(i => i.x + i.w * 0.5))
-        if (rightMost >= 224 - 8 && formation.dir === 1) { formation.dir = -1; for (const inv of alive) inv.y += DROP_PIXELS }
-        if (leftMost <= 8 && formation.dir === -1) { formation.dir = 1; for (const inv of alive) inv.y += DROP_PIXELS }
+        if (rightMost >= 224 - 8 && formation.dir === 1) { formation.dir = -1; for (const inv of alive) inv.y += DROP }
+        if (leftMost <= 8 && formation.dir === -1) { formation.dir = 1; for (const inv of alive) inv.y += DROP }
       }
 
-      // enemy fire slower and with protection rule
-      if (Math.random() < 0.012) {
-        const bottomByCol = {}
-        for (const inv of invaders) if (inv.alive) bottomByCol[inv.col] = inv
-        const cols = Object.keys(bottomByCol)
+      // enemy fire every 0.9 s on average
+      enemyFireTimer += dt
+      if (enemyFireTimer > 0.9) {
+        enemyFireTimer = 0
+        const bottom = {}
+        for (const inv of invaders) if (inv.alive) bottom[inv.col] = inv
+        const cols = Object.keys(bottom)
         if (cols.length) {
-          const shooter = bottomByCol[cols[(Math.random()*cols.length)|0]]
-          enemyBullets.push({ x: shooter.x, y: shooter.y + shooter.h * 0.5, w: 1, h: 6, vy: ENEMY_BULLET_SPEED })
+          const shooter = bottom[cols[(Math.random()*cols.length)|0]]
+          enemyBullets.push({ x: shooter.x, y: shooter.y + shooter.h * 0.5, w: 1, h: 6, vy: E_BULLET_SPEED })
         }
       }
       for (const eb of enemyBullets) eb.y += eb.vy * dt
+      for (let i = enemyBullets.length - 1; i >= 0; i--) if (enemyBullets[i].y > 256) enemyBullets.splice(i,1)
 
       // collisions
       if (playerBullet) {
@@ -167,7 +162,7 @@
           hudLives.textContent = lives
           player.alive = false
           setTimeout(()=>{ if (lives > 0) { player.alive = true; player.x = 112 } }, 600)
-        } else if (b.y > 256) enemyBullets.splice(i,1)
+        }
       }
 
       if (!invaders.some(i => i.alive)) { level += 1; startLevel(level) }
@@ -191,23 +186,7 @@
 
     function drawInvader(inv) {
       const img = inv.sex === 'male' ? male : female
-      const ok = inv.sex === 'male' ? maleOk : femaleOk
-      // never downscale, at least double size
-      if (ok) {
-        const minScale = 2
-        const scale = Math.max(minScale, 1) // always upscale at least 2x
-        const dw = img.width * scale
-        const dh = img.height * scale
-        ctx.drawImage(img, inv.x - dw * 0.5, inv.y - dh * 0.5, dw, dh)
-        inv.w = dw
-        inv.h = dh
-      } else {
-        ctx.fillStyle = '#9eff6b'
-        const s = 24
-        ctx.fillRect(inv.x - s*0.5, inv.y - s*0.5, s, s)
-        inv.w = s
-        inv.h = s
-      }
+      ctx.drawImage(img, inv.x - SPRITE_W * 0.5, inv.y - SPRITE_H * 0.5, SPRITE_W, SPRITE_H)
     }
 
     function drawBullets() {
